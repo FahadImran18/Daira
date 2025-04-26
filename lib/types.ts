@@ -1,4 +1,4 @@
-export type PropertyStatus = 'active' | 'pending' | 'sold' | 'rented';
+export type PropertyStatus = 'active' | 'pending' | 'rejected';
 export type ChatStatus = 'active' | 'archived';
 export type AdviceStatus = 'pending' | 'accepted' | 'rejected' | 'completed';
 export type UserRole = 'customer' | 'realtor' | 'advisor';
@@ -6,20 +6,21 @@ export type UserRole = 'customer' | 'realtor' | 'advisor';
 export interface Property {
   id: string;
   title: string;
-  description: string | null;
-  price: number;
+  description: string;
+  price: string;
   location: string;
   city: string;
   property_type: string;
   status: PropertyStatus;
-  bedrooms: number | null;
-  bathrooms: number | null;
-  area: number | null;
+  bedrooms: number;
+  bathrooms: number;
+  area: string;
   images: string[];
-  features: Record<string, any>;
+  features: string[];
   realtor_id: string;
   created_at: string;
   updated_at: string;
+  is_featured: boolean;
 }
 
 export interface Chat {

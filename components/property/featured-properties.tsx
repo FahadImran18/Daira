@@ -6,72 +6,12 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Heart, MapPin, Bed, Bath, Maximize, ArrowRight } from 'lucide-react';
-
-const featuredProperties = [
-  {
-    id: '1',
-    title: 'Modern Apartment in Bahria Town',
-    location: 'Bahria Town, Karachi',
-    price: '2.45 Crore',
-    type: 'Apartment',
-    purpose: 'Sale',
-    bedrooms: 3,
-    bathrooms: 2,
-    area: '1,250 sq. ft.',
-    image: 'https://images.pexels.com/photos/1571460/pexels-photo-1571460.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    isVerified: true,
-    isFeatured: true,
-    isHot: false,
-  },
-  {
-    id: '2',
-    title: 'Luxury Villa in DHA Phase 6',
-    location: 'DHA Phase 6, Lahore',
-    price: '5.75 Crore',
-    type: 'House',
-    purpose: 'Sale',
-    bedrooms: 5,
-    bathrooms: 6,
-    area: '4,500 sq. ft.',
-    image: 'https://images.pexels.com/photos/323780/pexels-photo-323780.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    isVerified: true,
-    isFeatured: true,
-    isHot: true,
-  },
-  {
-    id: '3',
-    title: 'Commercial Plot in Gulberg',
-    location: 'Gulberg III, Lahore',
-    price: '3.90 Crore',
-    type: 'Plot',
-    purpose: 'Sale',
-    bedrooms: 0,
-    bathrooms: 0,
-    area: '10 Marla',
-    image: 'https://images.pexels.com/photos/186077/pexels-photo-186077.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    isVerified: true,
-    isFeatured: true,
-    isHot: false,
-  },
-  {
-    id: '4',
-    title: 'Renovated House in F-7',
-    location: 'F-7, Islamabad',
-    price: '1.8 Lakh/month',
-    type: 'House',
-    purpose: 'Rent',
-    bedrooms: 4,
-    bathrooms: 3,
-    area: '2,800 sq. ft.',
-    image: 'https://images.pexels.com/photos/1396122/pexels-photo-1396122.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2',
-    isVerified: true,
-    isFeatured: true,
-    isHot: false,
-  },
-];
+import { useProperties } from '@/lib/supabase/hooks';
+import { Property } from '@/lib/types';
 
 export default function FeaturedProperties() {
   const [favorited, setFavorited] = useState<{ [key: string]: boolean }>({});
+  const { properties, loading, error } = useProperties({ featured: true }) as { properties: Property[], loading: boolean, error: any };
 
   const toggleFavorite = (id: string) => {
     setFavorited(prev => ({
@@ -80,16 +20,48 @@ export default function FeaturedProperties() {
     }));
   };
 
+  if (loading) {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {[...Array(4)].map((_, i) => (
+          <Card key={i} className="overflow-hidden animate-pulse">
+            <div className="aspect-[4/3] bg-gray-200 dark:bg-gray-700" />
+            <CardHeader className="space-y-2">
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-3/4" />
+              <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/2" />
+            </CardHeader>
+          </Card>
+        ))}
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-red-500">Failed to load properties. Please try again later.</p>
+      </div>
+    );
+  }
+
+  if (!properties || properties.length === 0) {
+    return (
+      <div className="text-center py-8">
+        <p className="text-gray-500">No featured properties available at the moment.</p>
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {featuredProperties.map((property) => (
+        {properties.map((property) => (
           <Card key={property.id} className="overflow-hidden group transition-all duration-300 hover:shadow-lg border-transparent hover:border-emerald-600/20">
             <div className="relative">
               <Link href={`/properties/${property.id}`}>
                 <div className="aspect-[4/3] relative overflow-hidden">
                   <img
-                    src={property.image}
+                    src={property.images?.[0]?.url || 'https://via.placeholder.com/400x300'}
                     alt={property.title}
                     className="object-cover h-full w-full group-hover:scale-105 transition-transform duration-500"
                   />
@@ -97,10 +69,10 @@ export default function FeaturedProperties() {
               </Link>
               
               <div className="absolute top-2 left-2 flex gap-2">
-                {property.isVerified && (
+                {property.status === 'approved' && (
                   <Badge className="bg-emerald-600">Verified</Badge>
                 )}
-                {property.isHot && (
+                {property.is_hot && (
                   <Badge className="bg-red-500">Hot</Badge>
                 )}
               </div>
@@ -117,8 +89,8 @@ export default function FeaturedProperties() {
               </Button>
               
               <div className="absolute bottom-2 left-2 right-2 flex justify-between">
-                <Badge className="bg-white text-gray-800 font-medium">{property.type}</Badge>
-                <Badge className={property.purpose === 'Sale' ? 'bg-blue-500' : 'bg-amber-500'}>
+                <Badge className="bg-white text-gray-800 font-medium capitalize">{property.property_type}</Badge>
+                <Badge className={property.purpose === 'sale' ? 'bg-blue-500' : 'bg-amber-500'}>
                   For {property.purpose}
                 </Badge>
               </div>
@@ -131,20 +103,20 @@ export default function FeaturedProperties() {
               </div>
               <CardTitle className="text-lg text-left">{property.title}</CardTitle>
               <CardDescription className="text-lg font-bold text-emerald-600 dark:text-emerald-500">
-                PKR {property.price}
+                PKR {property.price.toLocaleString()}
               </CardDescription>
             </CardHeader>
             
             <CardContent className="p-4 pt-2 pb-0">
               <div className="flex justify-between text-sm">
-                {property.bedrooms > 0 && (
+                {property.bedrooms && property.bedrooms > 0 && (
                   <div className="flex items-center">
                     <Bed className="h-4 w-4 mr-1 text-muted-foreground" />
                     <span>{property.bedrooms} Beds</span>
                   </div>
                 )}
                 
-                {property.bathrooms > 0 && (
+                {property.bathrooms && property.bathrooms > 0 && (
                   <div className="flex items-center">
                     <Bath className="h-4 w-4 mr-1 text-muted-foreground" />
                     <span>{property.bathrooms} Baths</span>
@@ -153,7 +125,7 @@ export default function FeaturedProperties() {
                 
                 <div className="flex items-center">
                   <Maximize className="h-4 w-4 mr-1 text-muted-foreground" />
-                  <span>{property.area}</span>
+                  <span>{property.area_size} {property.area_unit}</span>
                 </div>
               </div>
             </CardContent>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from './client';
 import { useSupabase } from './provider';
+import { Property } from '@/lib/types';
 
 export function useProperties(options: {
   city?: string;
@@ -10,9 +11,9 @@ export function useProperties(options: {
   maxPrice?: number;
   featured?: boolean;
 } = {}) {
-  const [properties, setProperties] = useState([]);
+  const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProperties = async () => {
@@ -20,13 +21,8 @@ export function useProperties(options: {
         const supabase = createClient();
         let query = supabase
           .from('properties')
-          .select(`
-            *,
-            owner:owner_id(email, full_name),
-            images:property_images(url, is_primary),
-            features:property_features(feature)
-          `)
-          .eq('status', 'approved');
+          .select('*')
+          .eq('status', 'active');
 
         if (options.city) {
           query = query.eq('city', options.city);
@@ -34,25 +30,16 @@ export function useProperties(options: {
         if (options.type) {
           query = query.eq('property_type', options.type);
         }
-        if (options.purpose) {
-          query = query.eq('purpose', options.purpose);
-        }
-        if (options.minPrice) {
-          query = query.gte('price', options.minPrice);
-        }
-        if (options.maxPrice) {
-          query = query.lte('price', options.maxPrice);
-        }
-        if (options.featured) {
-          query = query.eq('is_featured', true);
-        }
+        // if (options.featured) {
+        //   query = query.eq('is_featured', true);
+        // }
 
         const { data, error: err } = await query;
         
         if (err) throw err;
-        setProperties(data);
+        setProperties(data || []);
       } catch (err) {
-        setError(err.message);
+        setError(err instanceof Error ? err.message : 'An error occurred');
       } finally {
         setLoading(false);
       }
