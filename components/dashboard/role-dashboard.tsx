@@ -14,6 +14,7 @@ import {
   AdviceRequest,
   ChatStatus,
   AdviceStatus,
+  UserProfile,
 } from "@/lib/types";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -78,37 +79,44 @@ const propertyFormSchema = z.object({
   location: z.string().min(1, "Location is required"),
   city: z.string().min(1, "City is required"),
   property_type: z.string().min(1, "Property type is required"),
-  bedrooms: z.string().optional(),
-  bathrooms: z.string().optional(),
+  bedrooms: z.coerce.number().min(0).default(0),
+  bathrooms: z.coerce.number().min(0).default(0),
   area: z.string().min(1, "Area is required"),
-  images: z.string().optional(),
-  features: z.string().optional(),
+  images: z.array(z.string()).default([]),
+  features: z.array(z.string()).default([]),
+  is_featured: z.boolean().default(false),
 });
 
 type PropertyFormData = z.infer<typeof propertyFormSchema>;
 
 export default function RoleDashboard() {
-  const { user, userRole } = useSupabase();
+  const { user } = useSupabase();
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [chats, setChats] = useState<Chat[]>([]);
   const [adviceRequests, setAdviceRequests] = useState<AdviceRequest[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [showPropertyForm, setShowPropertyForm] = useState(false);
   const [editingProperty, setEditingProperty] = useState<Property | null>(null);
-  const [newProperty, setNewProperty] = useState({
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [newProperty, setNewProperty] = useState<
+    Omit<Property, "id" | "created_at" | "updated_at" | "realtor_id" | "status">
+  >({
     title: "",
     description: "",
     price: "",
     location: "",
     city: "",
     property_type: "house",
-    bedrooms: "",
-    bathrooms: "",
+    bedrooms: 0,
+    bathrooms: 0,
     area: "",
-    status: "active",
+    images: [],
+    features: [],
+    is_featured: false,
   });
 
   const userService = new UserService();
@@ -116,7 +124,7 @@ export default function RoleDashboard() {
   const chatService = new ChatService();
   const adviceService = new AdviceService();
 
-  const form = useForm<z.infer<typeof propertyFormSchema>>({
+  const form = useForm<PropertyFormData>({
     resolver: zodResolver(propertyFormSchema),
     defaultValues: {
       title: "",
@@ -124,44 +132,131 @@ export default function RoleDashboard() {
       price: "",
       location: "",
       city: "",
-      property_type: "",
-      bedrooms: "",
-      bathrooms: "",
+      property_type: "house",
+      bedrooms: 0,
+      bathrooms: 0,
       area: "",
+      images: [],
+      features: [],
+      is_featured: false,
     },
   });
 
-  const loadUserData = async () => {
-    if (!user) return;
+  const loadUserProfile = async () => {
+    if (!user) {
+      console.debug("No user found, redirecting to login");
+      router.push("/login");
+      return;
+    }
 
     try {
-      if (user.role === "realtor") {
-        const [properties, chats, adviceRequests] = await Promise.all([
-          propertyService.getPropertiesByRealtor(user.id),
-          chatService.getChatsByRealtor(user.id),
-          adviceService.getAdviceRequests(user.id, "advisor"),
+      console.debug(`Loading user profile for user ${user.id}`);
+      const profile = await userService.getUserProfile(user.id);
+      console.debug(`Loaded user profile:`, profile);
+      setUserProfile(profile);
+      return profile;
+    } catch (error) {
+      console.error("Error loading user profile:", error);
+      setError("Failed to load user profile. Please try refreshing the page.");
+      return null;
+    }
+  };
+
+  const loadUserData = async () => {
+    if (!user) {
+      console.debug("No user found, redirecting to login");
+      router.push("/login");
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      // First load the user profile to get the correct role
+      const profile = await loadUserProfile();
+      if (!profile) {
+        throw new Error("Failed to load user profile");
+      }
+
+      console.debug(
+        `Loading dashboard data for user ${user.id} with role ${profile.role}`
+      );
+
+      if (profile.role === "realtor") {
+        console.debug("Loading realtor data...");
+        const [propertiesData, chatsData, adviceData] = await Promise.all([
+          propertyService
+            .getPropertiesByRealtor(user.id)
+            .catch((err: Error) => {
+              console.error("Failed to load realtor properties:", err);
+              throw new Error("Failed to load properties");
+            }),
+          chatService.getChatsByRealtor(user.id).catch((err: Error) => {
+            console.error("Failed to load realtor chats:", err);
+            throw new Error("Failed to load chats");
+          }),
+          adviceService
+            .getAdviceRequests(user.id, "advisor")
+            .catch((err: Error) => {
+              console.error("Failed to load realtor advice requests:", err);
+              throw new Error("Failed to load advice requests");
+            }),
         ]);
 
-        setProperties(properties as Property[]);
-        setChats(chats as Chat[]);
-        setAdviceRequests(adviceRequests as AdviceRequest[]);
-      } else if (user.role === "user") {
-        const [properties, chats, adviceRequests] = await Promise.all([
-          propertyService.getPropertiesByUser(user.id),
-          chatService.getChatsByUser(user.id),
-          adviceService.getAdviceRequests(user.id, "user"),
+        console.debug(
+          `Loaded ${propertiesData.length} properties, ${chatsData.length} chats, ${adviceData.length} advice requests`
+        );
+
+        setProperties(propertiesData);
+        setChats(chatsData);
+        setAdviceRequests(adviceData as unknown as AdviceRequest[]);
+      } else if (profile.role === "customer") {
+        console.debug("Loading customer data...");
+        const [propertiesData, chatsData, adviceData] = await Promise.all([
+          propertyService
+            .searchProperties({ status: "active" })
+            .catch((err: Error) => {
+              console.error("Failed to load customer properties:", err);
+              throw new Error("Failed to load properties");
+            }),
+          chatService.getChatsByUser(user.id).catch((err: Error) => {
+            console.error("Failed to load customer chats:", err);
+            throw new Error("Failed to load chats");
+          }),
+          adviceService
+            .getAdviceRequests(user.id, "customer")
+            .catch((err: Error) => {
+              console.error("Failed to load customer advice requests:", err);
+              throw new Error("Failed to load advice requests");
+            }),
         ]);
 
-        setProperties(properties as Property[]);
-        setChats(chats as Chat[]);
-        setAdviceRequests(adviceRequests as AdviceRequest[]);
+        console.debug(
+          `Loaded ${propertiesData.length} properties, ${chatsData.length} chats, ${adviceData.length} advice requests`
+        );
+
+        setProperties(propertiesData);
+        setChats(chatsData);
+        setAdviceRequests(adviceData as unknown as AdviceRequest[]);
+      } else {
+        throw new Error(`Invalid user role: ${profile.role}`);
       }
     } catch (error) {
-      console.error("Error loading user data:", error);
+      console.error("Error in loadUserData:", error);
+      setError(
+        error instanceof Error ? error.message : "Failed to load dashboard data"
+      );
+      toast.error(
+        "Failed to load dashboard data. Please try refreshing the page."
+      );
+    } finally {
+      setIsLoading(false);
     }
   };
 
   useEffect(() => {
+    console.debug("Dashboard component mounted");
     loadUserData();
   }, [user]);
 
@@ -171,13 +266,21 @@ export default function RoleDashboard() {
 
     try {
       setIsUploading(true);
-      const propertyData = {
-        ...newProperty,
+      const propertyData: Omit<Property, "id" | "created_at" | "updated_at"> = {
+        title: newProperty.title,
+        description: newProperty.description,
+        price: newProperty.price,
+        location: newProperty.location,
+        city: newProperty.city,
+        property_type: newProperty.property_type,
+        bedrooms: Number(newProperty.bedrooms) || 0,
+        bathrooms: Number(newProperty.bathrooms) || 0,
+        area: newProperty.area,
         realtor_id: user.id,
-        price: Number(newProperty.price),
-        bedrooms: Number(newProperty.bedrooms),
-        bathrooms: Number(newProperty.bathrooms),
-        area: Number(newProperty.area),
+        status: "active" as PropertyStatus,
+        images: [],
+        features: [],
+        is_featured: false,
       };
 
       await propertyService.createProperty(propertyData);
@@ -197,14 +300,18 @@ export default function RoleDashboard() {
         location: "",
         city: "",
         property_type: "house",
-        bedrooms: "",
-        bathrooms: "",
+        bedrooms: 0,
+        bathrooms: 0,
         area: "",
-        status: "active",
+        images: [],
+        features: [],
+        is_featured: false,
       });
-    } catch (error: any) {
+
+      setIsDialogOpen(false);
+    } catch (error) {
       console.error("Error uploading property:", error);
-      toast.error(error.message || "Failed to upload property");
+      toast.error("Failed to upload property. Please try again.");
     } finally {
       setIsUploading(false);
     }
@@ -214,61 +321,90 @@ export default function RoleDashboard() {
     if (!user) return;
 
     try {
-      const propertyData: Partial<Property> = {
-        ...data,
-        price: parseFloat(data.price),
-        bedrooms: data.bedrooms ? parseInt(data.bedrooms) : null,
-        bathrooms: data.bathrooms ? parseInt(data.bathrooms) : null,
-        area: data.area ? parseFloat(data.area) : null,
-        images: data.images
-          ? data.images.split(",").map((img: string) => img.trim())
-          : [],
-        features: data.features ? JSON.parse(data.features) : {},
+      const propertyData: Omit<Property, "id" | "created_at" | "updated_at"> = {
+        title: data.title,
+        description: data.description,
+        price: data.price,
+        location: data.location,
+        city: data.city,
+        property_type: data.property_type,
+        bedrooms: data.bedrooms,
+        bathrooms: data.bathrooms,
+        area: data.area,
+        images: data.images,
+        features: data.features,
+        is_featured: data.is_featured,
         status: "active" as PropertyStatus,
         realtor_id: user.id,
       };
 
       if (editingProperty) {
         await propertyService.updateProperty(editingProperty.id, propertyData);
+        toast.success("Property updated successfully");
       } else {
-        await propertyService.createProperty({
-          ...propertyData,
-          images: propertyData.images || [],
-          features: propertyData.features || {},
-        } as Omit<Property, "id" | "created_at" | "updated_at">);
+        await propertyService.createProperty(propertyData);
+        toast.success("Property created successfully");
       }
 
-      const updatedProperties = await propertyService.getProperties();
+      const updatedProperties = await propertyService.getPropertiesByRealtor(
+        user.id
+      );
       setProperties(updatedProperties);
       setShowPropertyForm(false);
       setEditingProperty(null);
+      form.reset();
     } catch (error) {
       console.error("Error saving property:", error);
+      toast.error("Failed to save property. Please try again.");
     }
   };
 
-  if (isLoading) {
+  if (error) {
     return (
-      <div className="flex items-center justify-center h-64">Loading...</div>
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-4">
+        <div className="text-red-500 mb-4">{error}</div>
+        <Button
+          onClick={() => {
+            setError(null);
+            loadUserData();
+          }}
+        >
+          Try Again
+        </Button>
+      </div>
     );
   }
 
-  if (!userRole) {
-    return <div>User role not found</div>;
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[400px] p-4">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-500 mb-4"></div>
+        <div className="text-muted-foreground">Loading dashboard data...</div>
+      </div>
+    );
+  }
+
+  if (!userProfile) {
+    return <div>User profile not found</div>;
   }
 
   return (
-    <div className="container mx-auto py-8">
+    <div className="container mx-auto p-4">
+      <div className="text-xs text-muted-foreground mb-4">
+        Role: {userProfile?.role || "Unknown"} | User ID:{" "}
+        {user?.id || "Not logged in"}
+      </div>
+
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold">
-          {userRole === "realtor"
+          {userProfile.role === "realtor"
             ? "Realtor Dashboard"
-            : userRole === "advisor"
+            : userProfile.role === "advisor"
             ? "Advisor Dashboard"
             : "Customer Dashboard"}
         </h1>
 
-        {userRole === "realtor" && (
+        {userProfile.role === "realtor" && (
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button>
@@ -468,15 +604,15 @@ export default function RoleDashboard() {
 
       <Tabs
         defaultValue={
-          userRole === "realtor"
+          userProfile.role === "realtor"
             ? "properties"
-            : userRole === "advisor"
+            : userProfile.role === "advisor"
             ? "advice"
             : "chats"
         }
       >
         <TabsList className="mb-6">
-          {userRole === "realtor" && (
+          {userProfile.role === "realtor" && (
             <>
               <TabsTrigger value="properties">
                 <Building2 className="mr-2 h-4 w-4" />
@@ -492,10 +628,10 @@ export default function RoleDashboard() {
               </TabsTrigger>
             </>
           )}
-          {userRole === "advisor" && (
+          {userProfile.role === "advisor" && (
             <TabsTrigger value="advice">Advice Requests</TabsTrigger>
           )}
-          {userRole === "customer" && (
+          {userProfile.role === "customer" && (
             <>
               <TabsTrigger value="chats">My Chats</TabsTrigger>
               <TabsTrigger value="advice">My Advice Requests</TabsTrigger>
@@ -503,7 +639,7 @@ export default function RoleDashboard() {
           )}
         </TabsList>
 
-        {userRole === "realtor" && (
+        {userProfile.role === "realtor" && (
           <>
             <TabsContent value="properties">
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -688,7 +824,7 @@ export default function RoleDashboard() {
           </>
         )}
 
-        {userRole === "advisor" && (
+        {userProfile.role === "advisor" && (
           <TabsContent value="advice">
             <div className="space-y-4">
               {adviceRequests.length === 0 ? (
@@ -720,7 +856,7 @@ export default function RoleDashboard() {
           </TabsContent>
         )}
 
-        {userRole === "customer" && (
+        {userProfile.role === "customer" && (
           <>
             <TabsContent value="chats">
               <div className="space-y-4">

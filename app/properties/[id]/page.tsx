@@ -1,37 +1,29 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
-import { useSupabase } from "@/lib/supabase/provider";
+import { useParams } from "next/navigation";
 import { PropertyService } from "@/lib/services/property-service";
 import { Property } from "@/lib/types";
 import { Button } from "@/components/ui/button";
-import { toast } from "sonner";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  ArrowLeft,
   Bed,
   Bath,
-  Square,
+  Maximize,
   MapPin,
   Building2,
-  MessageSquare,
+  Calendar,
+  DollarSign,
 } from "lucide-react";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 
-export default function PropertyDetailPage() {
+export default function PropertyDetailsPage() {
   const params = useParams();
-  const router = useRouter();
-  const { user } = useSupabase();
-  const [isLoading, setIsLoading] = useState(true);
   const [property, setProperty] = useState<Property | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
   const propertyService = new PropertyService();
 
   useEffect(() => {
@@ -40,157 +32,183 @@ export default function PropertyDetailPage() {
         const propertyData = await propertyService.getPropertyById(
           params.id as string
         );
-        if (!propertyData) {
-          toast.error("Property not found");
-          router.push("/properties");
-          return;
+        if (propertyData) {
+          setProperty(propertyData);
         }
-        setProperty(propertyData);
-      } catch (error: any) {
+      } catch (error) {
         console.error("Error loading property:", error);
-        toast.error(error.message || "Failed to load property");
-        router.push("/properties");
       } finally {
-        setIsLoading(false);
+        setLoading(false);
       }
     };
 
     loadProperty();
-  }, [params.id, router]);
+  }, [params.id]);
 
-  if (isLoading) {
+  if (loading) {
     return (
-      <div className="flex items-center justify-center h-64">Loading...</div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="animate-pulse space-y-8">
+          <div className="h-96 bg-gray-200 rounded-lg" />
+          <div className="space-y-4">
+            <div className="h-8 bg-gray-200 rounded w-3/4" />
+            <div className="h-4 bg-gray-200 rounded w-1/2" />
+          </div>
+        </div>
+      </div>
     );
   }
 
   if (!property) {
-    return null;
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="text-center">
+          <h1 className="text-2xl font-bold">Property not found</h1>
+          <p className="text-muted-foreground">
+            The property you're looking for doesn't exist or has been removed.
+          </p>
+        </div>
+      </div>
+    );
   }
 
-  const handleContactRealtor = () => {
-    if (!user) {
-      router.push("/auth/login");
-      return;
-    }
-    // TODO: Implement chat creation
-    router.push(`/chats/new?propertyId=${property.id}`);
-  };
-
   return (
-    <div className="container mx-auto py-8">
-      <div className="mb-6">
-        <Button
-          variant="ghost"
-          className="mb-4"
-          onClick={() => router.push("/properties")}
-        >
-          <ArrowLeft className="h-4 w-4 mr-2" />
-          Back to Properties
-        </Button>
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2">
-            <div className="relative aspect-video rounded-lg overflow-hidden mb-6 bg-muted">
-              {property.images && property.images.length > 0 ? (
+    <div className="container mx-auto px-4 py-8">
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Image Gallery */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="relative aspect-[4/3] rounded-lg overflow-hidden">
+            <img
+              src={
+                property.images?.[activeImageIndex] ||
+                "https://via.placeholder.com/800x600"
+              }
+              alt={property.title}
+              className="object-cover w-full h-full"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-2">
+            {property.images?.map((image, index) => (
+              <button
+                key={index}
+                onClick={() => setActiveImageIndex(index)}
+                className={`relative aspect-square rounded-lg overflow-hidden ${
+                  activeImageIndex === index ? "ring-2 ring-primary" : ""
+                }`}
+              >
                 <img
-                  src={property.images[0]}
-                  alt={property.title}
+                  src={image}
+                  alt={`${property.title} - Image ${index + 1}`}
                   className="object-cover w-full h-full"
                 />
-              ) : (
-                <div className="flex items-center justify-center h-full">
-                  <Building2 className="h-12 w-12 text-muted-foreground" />
-                </div>
-              )}
-              <div className="absolute top-4 right-4">
-                <span
-                  className={`px-3 py-1 rounded-full text-sm font-medium ${
-                    property.status === "active"
-                      ? "bg-green-100 text-green-800"
-                      : property.status === "pending"
-                      ? "bg-yellow-100 text-yellow-800"
-                      : property.status === "sold"
-                      ? "bg-red-100 text-red-800"
-                      : "bg-blue-100 text-blue-800"
-                  }`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Property Information */}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-6">
+            <div>
+              <div className="flex items-center justify-between">
+                <h1 className="text-3xl font-bold">{property.title}</h1>
+                <Badge
+                  variant={
+                    property.status === "active" ? "default" : "secondary"
+                  }
                 >
-                  {property.status.charAt(0).toUpperCase() +
-                    property.status.slice(1)}
+                  {property.status}
+                </Badge>
+              </div>
+              <div className="flex items-center text-muted-foreground mt-2">
+                <MapPin className="h-4 w-4 mr-1" />
+                <span>
+                  {property.location}, {property.city}
                 </span>
               </div>
             </div>
 
-            <h1 className="text-3xl font-bold mb-2">{property.title}</h1>
-            <div className="flex items-center text-muted-foreground mb-6">
-              <MapPin className="h-4 w-4 mr-1" />
-              <span>
-                {property.location}, {property.city}
-              </span>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-center space-x-2">
+                    <Bed className="h-5 w-5 text-muted-foreground" />
+                    <span className="font-medium">
+                      {property.bedrooms} Beds
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-center space-x-2">
+                    <Bath className="h-5 w-5 text-muted-foreground" />
+                    <span className="font-medium">
+                      {property.bathrooms} Baths
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-center space-x-2">
+                    <Maximize className="h-5 w-5 text-muted-foreground" />
+                    <span className="font-medium">{property.area} sq ft</span>
+                  </div>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="pt-6">
+                  <div className="flex items-center justify-center space-x-2">
+                    <Building2 className="h-5 w-5 text-muted-foreground" />
+                    <span className="font-medium capitalize">
+                      {property.property_type}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
 
-            <div className="grid grid-cols-3 gap-4 mb-8">
-              <div className="flex items-center space-x-2">
-                <Bed className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium">{property.bedrooms}</p>
-                  <p className="text-sm text-muted-foreground">Bedrooms</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Bath className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium">{property.bathrooms}</p>
-                  <p className="text-sm text-muted-foreground">Bathrooms</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-2">
-                <Square className="h-5 w-5 text-primary" />
-                <div>
-                  <p className="font-medium">{property.area} sq ft</p>
-                  <p className="text-sm text-muted-foreground">Area</p>
-                </div>
-              </div>
-            </div>
-
-            <Tabs defaultValue="details">
-              <TabsList className="mb-4">
-                <TabsTrigger value="details">Details</TabsTrigger>
+            <Tabs defaultValue="description" className="w-full">
+              <TabsList>
+                <TabsTrigger value="description">Description</TabsTrigger>
                 <TabsTrigger value="features">Features</TabsTrigger>
+                <TabsTrigger value="location">Location</TabsTrigger>
               </TabsList>
-              <TabsContent value="details">
+              <TabsContent value="description" className="mt-4">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Property Details</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="prose max-w-none">
-                      <p>{property.description}</p>
+                  <CardContent className="pt-6">
+                    <p className="text-muted-foreground whitespace-pre-line">
+                      {property.description}
+                    </p>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+              <TabsContent value="features" className="mt-4">
+                <Card>
+                  <CardContent className="pt-6">
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {property.features?.map((feature, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center space-x-2"
+                        >
+                          <div className="h-2 w-2 rounded-full bg-primary" />
+                          <span>{feature}</span>
+                        </div>
+                      ))}
                     </div>
                   </CardContent>
                 </Card>
               </TabsContent>
-              <TabsContent value="features">
+              <TabsContent value="location" className="mt-4">
                 <Card>
-                  <CardHeader>
-                    <CardTitle>Features</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-2 gap-4">
-                      {property.features &&
-                        Object.entries(property.features).map(
-                          ([key, value]) => (
-                            <div
-                              key={key}
-                              className="flex items-center space-x-2"
-                            >
-                              <div className="h-2 w-2 rounded-full bg-primary" />
-                              <span className="capitalize">
-                                {key.replace(/_/g, " ")}
-                              </span>
-                            </div>
-                          )
-                        )}
+                  <CardContent className="pt-6">
+                    <div className="aspect-video bg-muted rounded-lg">
+                      {/* Add map component here */}
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        Map will be displayed here
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -198,36 +216,34 @@ export default function PropertyDetailPage() {
             </Tabs>
           </div>
 
-          <div className="lg:col-span-1">
-            <Card className="sticky top-8">
+          <div className="space-y-6">
+            <Card>
               <CardHeader>
-                <CardTitle className="text-2xl">
-                  ${property.price.toLocaleString()}
-                </CardTitle>
-                <CardDescription>
-                  Listed on{" "}
-                  {format(new Date(property.created_at), "MMM d, yyyy")}
-                </CardDescription>
+                <CardTitle>Price</CardTitle>
               </CardHeader>
               <CardContent>
-                <Button className="w-full mb-4" onClick={handleContactRealtor}>
-                  <MessageSquare className="h-4 w-4 mr-2" />
-                  Contact Realtor
-                </Button>
-                <div className="space-y-4">
-                  <div>
-                    <h3 className="font-medium mb-2">Property Type</h3>
-                    <p className="text-muted-foreground capitalize">
-                      {property.property_type.replace(/_/g, " ")}
-                    </p>
-                  </div>
-                  <div>
-                    <h3 className="font-medium mb-2">Location</h3>
-                    <p className="text-muted-foreground">
-                      {property.location}, {property.city}
-                    </p>
-                  </div>
+                <div className="text-3xl font-bold text-primary">
+                  ${Number(property.price).toLocaleString()}
                 </div>
+                <div className="flex items-center text-muted-foreground mt-2">
+                  <Calendar className="h-4 w-4 mr-1" />
+                  <span>
+                    Listed on{" "}
+                    {format(new Date(property.created_at), "MMMM d, yyyy")}
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Contact Realtor</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <Button className="w-full">Schedule a Viewing</Button>
+                <Button variant="outline" className="w-full">
+                  Message Realtor
+                </Button>
               </CardContent>
             </Card>
           </div>
