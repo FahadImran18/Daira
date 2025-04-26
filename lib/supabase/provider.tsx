@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Session, User, SupabaseClient } from "@supabase/supabase-js";
 import { UserRole } from "@/lib/types";
+import { createClientComponentClient } from "@supabase/auth-helpers-nextjs";
+import { UserService } from "@/lib/services/user-service";
 
 interface SupabaseContextType {
   user: User | null;
@@ -33,32 +35,31 @@ export const useSupabase = () => useContext(SupabaseContext);
 
 export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
   const [userRole, setUserRole] = useState<UserRole | null>(null);
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const supabase = createClientComponentClient();
+  const userService = new UserService();
 
   useEffect(() => {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange(
-      async (_event: string, session: Session | null) => {
-        setUser(session?.user ?? null);
-
+      async (event: string, session: Session | null) => {
         if (session?.user) {
-          // Get user role
-          const { data: userData, error: roleError } = await supabase
-            .from("user_profiles")
-            .select("role")
-            .eq("id", session.user.id)
-            .single();
-
-          if (!roleError && userData) {
-            setUserRole(userData.role as UserRole);
+          setUser(session.user);
+          try {
+            const role = await userService.getUserRole(session.user.id);
+            setUserRole(role);
+          } catch (error) {
+            console.error("Error fetching user role:", error);
+            // Don't clear the user if we can't get the role
+            // The role will be fetched again on the next request
           }
         } else {
+          setUser(null);
           setUserRole(null);
         }
-
         setLoading(false);
       }
     );
@@ -66,35 +67,17 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.unsubscribe();
     };
-  }, []);
+  }, [supabase.auth]);
 
   const signOut = async () => {
     try {
-      // First clear the user state to prevent UI flicker
+      await supabase.auth.signOut();
       setUser(null);
       setUserRole(null);
-
-      // Then attempt to sign out from Supabase
-      const { error } = await supabase.auth.signOut();
-
-      if (error) {
-        console.error("Error signing out:", error);
-        toast.error("Failed to sign out. Please try again.");
-        return;
-      }
-
-      // Clear any local storage or session data if needed
-      localStorage.removeItem("supabase.auth.token");
-
-      // Show success message
-      toast.success("Signed out successfully");
-
-      // Redirect to home page
       router.push("/");
-      router.refresh();
     } catch (error) {
       console.error("Error signing out:", error);
-      toast.error("Failed to sign out. Please try again.");
+      throw error;
     }
   };
 

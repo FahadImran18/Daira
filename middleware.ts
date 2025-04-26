@@ -20,9 +20,9 @@ export async function middleware(request: NextRequest) {
   const publicRoutes = [
     '/', 
     '/properties',
-    '/auth/login',
-    '/auth/register',
-    '/auth/verification',
+    '/login',
+    '/register',
+    '/verification',
     '/about',
     '/contact',
     '/cities',
@@ -48,6 +48,8 @@ export async function middleware(request: NextRequest) {
       userRole = await userService.getUserRole(userId);
     } catch (error) {
       console.error('Error fetching user role:', error);
+      // If we can't get the role, don't block access - let the client-side handle it
+      return res;
     }
 
     // Role-specific routes
@@ -60,6 +62,7 @@ export async function middleware(request: NextRequest) {
     const isAdvisorRoute = advisorRoutes.some(route => pathname.startsWith(route));
     const isCustomerRoute = customerRoutes.some(route => pathname.startsWith(route));
 
+    // Only redirect if the user is trying to access a role-specific route
     if (isRealtorRoute && userRole !== 'realtor') {
       return NextResponse.redirect(new URL('/dashboard', request.url));
     }
