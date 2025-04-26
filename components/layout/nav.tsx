@@ -34,6 +34,31 @@ export default function Nav() {
                 Properties
               </Link>
 
+              {userRole === "realtor" && (
+                <>
+                  <Link
+                    href="/realtor/dashboard"
+                    className={`text-sm transition-colors hover:text-primary ${
+                      isActive("/realtor/dashboard")
+                        ? "text-primary font-medium"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    Dashboard
+                  </Link>
+                  <Link
+                    href="/realtor/properties"
+                    className={`text-sm transition-colors hover:text-primary ${
+                      isActive("/realtor/properties")
+                        ? "text-primary font-medium"
+                        : "text-muted-foreground"
+                    }`}
+                  >
+                    My Properties
+                  </Link>
+                </>
+              )}
+
               <Link
                 href="/about"
                 className={`text-sm transition-colors hover:text-primary ${

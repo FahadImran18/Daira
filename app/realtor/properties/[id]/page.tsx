@@ -26,13 +26,6 @@ import {
 } from "@/components/ui/card";
 import { ArrowLeft } from "lucide-react";
 
-// This function is required for static site generation with dynamic routes
-export async function generateStaticParams() {
-  // Return an empty array for now - we'll handle this dynamically
-  // In a real implementation, you would fetch all property IDs and return them
-  return [];
-}
-
 export default function PropertyDetailsPage() {
   const params = useParams();
   const router = useRouter();
