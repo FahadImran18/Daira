@@ -34,6 +34,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import ChatButton from "@/components/property/chat-button";
 
 export default function PropertyDetailsPage() {
   const params = useParams();
@@ -311,24 +312,34 @@ export default function PropertyDetailsPage() {
               </CardContent>
             </Card>
 
-            {user?.role === "customer" && (
-              <Card>
+            {user && user.role !== "realtor" && (
+              <Card className="mt-4">
                 <CardHeader>
                   <CardTitle>Contact Realtor</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  <ChatButton
+                    propertyId={property.id}
+                    realtorId={property.realtor_id}
+                    propertyTitle={property.title}
+                  />
+
+                  <div className="text-center text-sm text-muted-foreground">
+                    or schedule a viewing
+                  </div>
+
                   <Dialog>
                     <DialogTrigger asChild>
-                      <Button className="w-full">
-                        <Clock className="h-4 w-4 mr-2" />
-                        Schedule a Viewing
+                      <Button variant="outline" className="w-full">
+                        <Calendar className="mr-2 h-4 w-4" />
+                        Schedule Viewing
                       </Button>
                     </DialogTrigger>
                     <DialogContent>
                       <DialogHeader>
                         <DialogTitle>Schedule a Viewing</DialogTitle>
                       </DialogHeader>
-                      <div className="space-y-4">
+                      <div className="space-y-4 py-4">
                         <div className="space-y-2">
                           <Label htmlFor="date">Date</Label>
                           <Input
@@ -336,7 +347,7 @@ export default function PropertyDetailsPage() {
                             type="date"
                             value={viewingDate}
                             onChange={(e) => setViewingDate(e.target.value)}
-                            required
+                            min={new Date().toISOString().split("T")[0]}
                           />
                         </div>
                         <div className="space-y-2">
@@ -346,48 +357,25 @@ export default function PropertyDetailsPage() {
                             type="time"
                             value={viewingTime}
                             onChange={(e) => setViewingTime(e.target.value)}
-                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="message">Message (Optional)</Label>
+                          <Textarea
+                            id="message"
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            placeholder="Add any specific questions or requirements..."
                           />
                         </div>
                         <Button
                           className="w-full"
                           onClick={handleScheduleViewing}
-                          disabled={isScheduling}
+                          disabled={
+                            isScheduling || !viewingDate || !viewingTime
+                          }
                         >
                           {isScheduling ? "Scheduling..." : "Schedule Viewing"}
-                        </Button>
-                      </div>
-                    </DialogContent>
-                  </Dialog>
-
-                  <Dialog>
-                    <DialogTrigger asChild>
-                      <Button variant="outline" className="w-full">
-                        <MessageSquare className="h-4 w-4 mr-2" />
-                        Message Realtor
-                      </Button>
-                    </DialogTrigger>
-                    <DialogContent>
-                      <DialogHeader>
-                        <DialogTitle>Send Message</DialogTitle>
-                      </DialogHeader>
-                      <div className="space-y-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="message">Message</Label>
-                          <Textarea
-                            id="message"
-                            value={message}
-                            onChange={(e) => setMessage(e.target.value)}
-                            placeholder="Type your message here..."
-                            required
-                          />
-                        </div>
-                        <Button
-                          className="w-full"
-                          onClick={handleSendMessage}
-                          disabled={isMessaging}
-                        >
-                          {isMessaging ? "Sending..." : "Send Message"}
                         </Button>
                       </div>
                     </DialogContent>

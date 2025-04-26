@@ -42,15 +42,44 @@ export function SupabaseProvider({ children }: { children: React.ReactNode }) {
   const userService = new UserService();
 
   useEffect(() => {
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(
-      async (event: string, session: Session | null) => {
+    // First check if we already have a session
+    const checkSession = async () => {
+      try {
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
         if (session?.user) {
           setUser(session.user);
           try {
             const role = await userService.getUserRole(session.user.id);
             setUserRole(role);
+            console.log("Session restored with role:", role);
+          } catch (error) {
+            console.error("Error fetching user role:", error);
+          }
+        }
+      } catch (error) {
+        console.error("Error checking session:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // Then set up the auth state change listener
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange(
+      async (event: string, session: Session | null) => {
+        console.log("Auth state changed:", event, session?.user?.id);
+
+        if (session?.user) {
+          setUser(session.user);
+          try {
+            const role = await userService.getUserRole(session.user.id);
+            setUserRole(role);
+            console.log("User role set to:", role);
           } catch (error) {
             console.error("Error fetching user role:", error);
             // Don't clear the user if we can't get the role

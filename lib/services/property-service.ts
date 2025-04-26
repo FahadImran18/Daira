@@ -6,14 +6,60 @@ export class PropertyService {
   private supabase = createClient();
 
   async createProperty(property: Omit<Property, 'id' | 'created_at' | 'updated_at'>): Promise<Property> {
+    console.log('Creating property with data:', property);
+    
+    // First check if user has realtor role
+    const { data: userProfile, error: roleError } = await this.supabase
+      .from('user_profiles')
+      .select('role')
+      .eq('id', property.realtor_id)
+      .single();
+
+    if (roleError) {
+      console.error('Error checking user role:', roleError);
+      throw new Error('Failed to verify user role');
+    }
+
+    if (!userProfile || userProfile.role !== 'realtor') {
+      throw new Error('Only realtors can create properties');
+    }
+
+    // Prepare property data with required fields
+    const propertyData = {
+      ...property,
+      // Ensure price and area are strings
+      price: property.price.toString(),
+      area: property.area.toString(),
+      features: property.features || [],
+      images: property.images || [],
+      status: 'active' as PropertyStatus,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+
+    // Validate required fields
+    if (!propertyData.title || !propertyData.description || !propertyData.price || 
+        !propertyData.location || !propertyData.city || !propertyData.property_type) {
+      throw new Error('Missing required fields');
+    }
+
+    console.log('Inserting property data:', propertyData);
+    
     const { data, error } = await this.supabase
       .from("properties")
-      .insert([property])
+      .insert([propertyData])
       .select()
       .single() as PostgrestSingleResponse<Property>;
 
-    if (error) throw error;
-    if (!data) throw new Error('Failed to create property');
+    if (error) {
+      console.error('Error creating property:', error);
+      throw error;
+    }
+    
+    if (!data) {
+      throw new Error('Failed to create property: No data returned');
+    }
+    
     return data;
   }
 

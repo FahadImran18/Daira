@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useSupabase } from "@/lib/supabase/provider";
 import { UserService } from "@/lib/services/user-service";
 import { PropertyService } from "@/lib/services/property-service";
@@ -39,6 +39,7 @@ import {
   Bed,
   Bath,
   Square,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -71,6 +72,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { useUser } from "@/hooks/use-user";
+import ImageUpload from "@/components/property/image-upload";
 
 const propertyFormSchema = z.object({
   title: z.string().min(1, "Title is required"),
@@ -90,7 +92,7 @@ const propertyFormSchema = z.object({
 type PropertyFormData = z.infer<typeof propertyFormSchema>;
 
 export default function RoleDashboard() {
-  const { user } = useSupabase();
+  const { user, userRole } = useSupabase();
   const router = useRouter();
   const [properties, setProperties] = useState<Property[]>([]);
   const [chats, setChats] = useState<Chat[]>([]);
@@ -146,7 +148,7 @@ export default function RoleDashboard() {
     if (!user) {
       console.debug("No user found, redirecting to login");
       router.push("/login");
-      return;
+      return null;
     }
 
     try {
@@ -255,10 +257,34 @@ export default function RoleDashboard() {
     }
   };
 
+  // Add a session check effect
+  useEffect(() => {
+    const checkSession = async () => {
+      if (!user) {
+        console.debug("No user found in session, redirecting to login");
+        router.push("/login");
+        return;
+      }
+
+      // If we have a user but no userProfile, load it
+      if (user && !userProfile) {
+        await loadUserProfile();
+      }
+    };
+
+    checkSession();
+  }, [user, userProfile]);
+
+  // Add a ref to track if data has been loaded
+  const dataLoadedRef = useRef(false);
+
   useEffect(() => {
     console.debug("Dashboard component mounted");
-    loadUserData();
-  }, [user]);
+    if (user && !dataLoadedRef.current) {
+      dataLoadedRef.current = true;
+      loadUserData();
+    }
+  }, [user?.id]); // Only depend on the user ID, not the entire user object
 
   const handlePropertyUpload = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -321,6 +347,9 @@ export default function RoleDashboard() {
     if (!user) return;
 
     try {
+      setIsUploading(true);
+      console.log("Submitting property data:", data);
+
       const propertyData: Omit<Property, "id" | "created_at" | "updated_at"> = {
         title: data.title,
         description: data.description,
@@ -331,12 +360,14 @@ export default function RoleDashboard() {
         bedrooms: data.bedrooms,
         bathrooms: data.bathrooms,
         area: data.area,
-        images: data.images,
-        features: data.features,
+        images: data.images || [],
+        features: data.features || [],
         is_featured: data.is_featured,
         status: "active" as PropertyStatus,
         realtor_id: user.id,
       };
+
+      console.log("Creating property with data:", propertyData);
 
       if (editingProperty) {
         await propertyService.updateProperty(editingProperty.id, propertyData);
@@ -346,16 +377,19 @@ export default function RoleDashboard() {
         toast.success("Property created successfully");
       }
 
+      // Refresh the properties list
       const updatedProperties = await propertyService.getPropertiesByRealtor(
         user.id
       );
       setProperties(updatedProperties);
-      setShowPropertyForm(false);
+      setIsDialogOpen(false);
       setEditingProperty(null);
       form.reset();
     } catch (error) {
       console.error("Error saving property:", error);
       toast.error("Failed to save property. Please try again.");
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -583,6 +617,30 @@ export default function RoleDashboard() {
                     />
                   </div>
 
+                  <FormField
+                    control={form.control}
+                    name="images"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Property Images</FormLabel>
+                        <FormControl>
+                          <ImageUpload
+                            initialImages={field.value}
+                            onImagesChange={(urls) => field.onChange(urls)}
+                            onPanoramaChange={(panorama) => {
+                              // If panorama is set, use it as the only image
+                              if (panorama) {
+                                field.onChange([panorama]);
+                              }
+                            }}
+                            disabled={isUploading}
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
                   <div className="flex justify-end space-x-4">
                     <Button
                       type="button"
@@ -592,7 +650,14 @@ export default function RoleDashboard() {
                       Cancel
                     </Button>
                     <Button type="submit" disabled={isUploading}>
-                      {isUploading ? "Uploading..." : "Upload Property"}
+                      {isUploading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Uploading...
+                        </>
+                      ) : (
+                        "Upload Property"
+                      )}
                     </Button>
                   </div>
                 </form>
@@ -759,7 +824,16 @@ export default function RoleDashboard() {
                       <CardContent>
                         <Button
                           variant="outline"
-                          onClick={() => router.push(`/chats/${chat.id}`)}
+                          onClick={() => {
+                            // Dispatch a custom event to open the chat
+                            const event = new CustomEvent("openChat", {
+                              detail: {
+                                chatId: chat.id,
+                                propertyTitle: chat.property?.title,
+                              },
+                            });
+                            window.dispatchEvent(event);
+                          }}
                         >
                           View Chat
                         </Button>
@@ -882,7 +956,16 @@ export default function RoleDashboard() {
                       <CardContent>
                         <Button
                           variant="outline"
-                          onClick={() => router.push(`/chats/${chat.id}`)}
+                          onClick={() => {
+                            // Dispatch a custom event to open the chat
+                            const event = new CustomEvent("openChat", {
+                              detail: {
+                                chatId: chat.id,
+                                propertyTitle: chat.property?.title,
+                              },
+                            });
+                            window.dispatchEvent(event);
+                          }}
                         >
                           View Chat
                         </Button>
