@@ -82,4 +82,24 @@ export interface UserProfile {
   avatar_url: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface Viewing {
+  id: string;
+  property_id: string;
+  user_id: string;
+  scheduled_at: string;
+  status: 'pending' | 'approved' | 'rejected' | 'completed';
+  notes?: string;
+  created_at: string;
+  updated_at: string;
+  user?: {
+    email: string;
+    full_name: string;
+  };
+  property?: {
+    title: string;
+    location: string;
+    images?: string[];
+  };
 } 

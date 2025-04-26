@@ -255,7 +255,7 @@ export default function RegisterPage() {
               Already have an account?
             </span>
             <Link
-              href="/auth/login"
+              href="/login"
               className="ml-1 text-emerald-600 hover:text-emerald-700"
             >
               Sign in

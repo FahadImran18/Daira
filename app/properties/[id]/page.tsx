@@ -1,8 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
+import { useUser } from "@/hooks/use-user";
 import { PropertyService } from "@/lib/services/property-service";
+import { ViewingService } from "@/lib/services/viewing-service";
+import { ChatService } from "@/lib/services/chat-service";
 import { Property } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,15 +19,37 @@ import {
   Building2,
   Calendar,
   DollarSign,
+  MessageSquare,
+  Clock,
 } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function PropertyDetailsPage() {
   const params = useParams();
+  const router = useRouter();
+  const { user } = useUser();
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [viewingDate, setViewingDate] = useState("");
+  const [viewingTime, setViewingTime] = useState("");
+  const [message, setMessage] = useState("");
+  const [isScheduling, setIsScheduling] = useState(false);
+  const [isMessaging, setIsMessaging] = useState(false);
   const propertyService = new PropertyService();
+  const viewingService = new ViewingService();
+  const chatService = new ChatService();
 
   useEffect(() => {
     const loadProperty = async () => {
@@ -37,6 +62,7 @@ export default function PropertyDetailsPage() {
         }
       } catch (error) {
         console.error("Error loading property:", error);
+        toast.error("Failed to load property");
       } finally {
         setLoading(false);
       }
@@ -44,6 +70,56 @@ export default function PropertyDetailsPage() {
 
     loadProperty();
   }, [params.id]);
+
+  const handleScheduleViewing = async () => {
+    if (!user || !property) return;
+
+    try {
+      setIsScheduling(true);
+      const scheduledAt = new Date(`${viewingDate}T${viewingTime}`);
+
+      await viewingService.scheduleViewing({
+        property_id: property.id,
+        user_id: user.id,
+        scheduled_at: scheduledAt.toISOString(),
+      });
+
+      toast.success("Viewing scheduled successfully");
+      setViewingDate("");
+      setViewingTime("");
+    } catch (error) {
+      console.error("Error scheduling viewing:", error);
+      toast.error("Failed to schedule viewing");
+    } finally {
+      setIsScheduling(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!user || !property) return;
+
+    try {
+      setIsMessaging(true);
+
+      // Get or create a chat between the user and realtor
+      const chat = await chatService.getOrCreateChat(
+        property.id,
+        user.id,
+        property.realtor_id
+      );
+
+      // Send the message
+      await chatService.sendMessage(chat.id, user.id, message);
+
+      toast.success("Message sent successfully");
+      setMessage("");
+    } catch (error) {
+      console.error("Error sending message:", error);
+      toast.error("Failed to send message");
+    } finally {
+      setIsMessaging(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -169,7 +245,7 @@ export default function PropertyDetailsPage() {
               </Card>
             </div>
 
-            <Tabs defaultValue="description" className="w-full">
+            <Tabs defaultValue="description">
               <TabsList>
                 <TabsTrigger value="description">Description</TabsTrigger>
                 <TabsTrigger value="features">Features</TabsTrigger>
@@ -235,17 +311,126 @@ export default function PropertyDetailsPage() {
               </CardContent>
             </Card>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>Contact Realtor</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <Button className="w-full">Schedule a Viewing</Button>
-                <Button variant="outline" className="w-full">
-                  Message Realtor
-                </Button>
-              </CardContent>
-            </Card>
+            {user?.role === "customer" && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Contact Realtor</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button className="w-full">
+                        <Clock className="h-4 w-4 mr-2" />
+                        Schedule a Viewing
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Schedule a Viewing</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="date">Date</Label>
+                          <Input
+                            id="date"
+                            type="date"
+                            value={viewingDate}
+                            onChange={(e) => setViewingDate(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="time">Time</Label>
+                          <Input
+                            id="time"
+                            type="time"
+                            value={viewingTime}
+                            onChange={(e) => setViewingTime(e.target.value)}
+                            required
+                          />
+                        </div>
+                        <Button
+                          className="w-full"
+                          onClick={handleScheduleViewing}
+                          disabled={isScheduling}
+                        >
+                          {isScheduling ? "Scheduling..." : "Schedule Viewing"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+
+                  <Dialog>
+                    <DialogTrigger asChild>
+                      <Button variant="outline" className="w-full">
+                        <MessageSquare className="h-4 w-4 mr-2" />
+                        Message Realtor
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Send Message</DialogTitle>
+                      </DialogHeader>
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="message">Message</Label>
+                          <Textarea
+                            id="message"
+                            value={message}
+                            onChange={(e) => setMessage(e.target.value)}
+                            placeholder="Type your message here..."
+                            required
+                          />
+                        </div>
+                        <Button
+                          className="w-full"
+                          onClick={handleSendMessage}
+                          disabled={isMessaging}
+                        >
+                          {isMessaging ? "Sending..." : "Send Message"}
+                        </Button>
+                      </div>
+                    </DialogContent>
+                  </Dialog>
+                </CardContent>
+              </Card>
+            )}
+
+            {user?.role === "realtor" && property.realtor_id === user.id && (
+              <Card>
+                <CardHeader>
+                  <CardTitle>Manage Property</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <Button
+                    className="w-full"
+                    onClick={() =>
+                      router.push(`/realtor/properties/${property.id}`)
+                    }
+                  >
+                    Edit Property
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() =>
+                      router.push(`/realtor/properties/${property.id}/viewings`)
+                    }
+                  >
+                    View Scheduled Viewings
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() =>
+                      router.push(`/realtor/properties/${property.id}/messages`)
+                    }
+                  >
+                    View Messages
+                  </Button>
+                </CardContent>
+              </Card>
+            )}
           </div>
         </div>
       </div>
