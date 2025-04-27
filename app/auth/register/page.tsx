@@ -218,20 +218,23 @@ export default function RegisterPage() {
                             List and sell properties (Realtor)
                           </FormLabel>
                         </FormItem>
-                        <FormItem className="flex items-center space-x-3 space-y-0">
-                          <FormControl>
-                            <RadioGroupItem value="advisor" />
-                          </FormControl>
-                          <FormLabel className="font-normal">
-                            Advise clients on properties (Advisor)
-                          </FormLabel>
-                        </FormItem>
                       </RadioGroup>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
+              <div className="mt-4 text-center text-sm text-muted-foreground">
+                Are you a property advisor?{" "}
+                <Link
+                  href="/signup/advisor"
+                  className="text-primary hover:underline font-medium"
+                >
+                  Sign up as an advisor
+                </Link>
+              </div>
+
               <Button
                 type="submit"
                 className="w-full bg-emerald-600 hover:bg-emerald-700"

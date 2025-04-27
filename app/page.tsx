@@ -1,9 +1,9 @@
-import Link from 'next/link';
-import { Button } from '@/components/ui/button';
-import PropertyShowcase from '@/components/property/property-showcase';
-import FeaturedProperties from '@/components/property/featured-properties';
-import HeroSearch from '@/components/search/hero-search';
-import CityGuides from '@/components/city/city-guides';
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import PropertyShowcase from "@/components/property/property-showcase";
+import FeaturedProperties from "@/components/property/featured-properties";
+import HeroSearch from "@/components/search/hero-search";
+import CityGuides from "@/components/city/city-guides";
 
 export default function Home() {
   return (
@@ -14,7 +14,8 @@ export default function Home() {
         <div
           className="absolute inset-0 bg-cover bg-center"
           style={{
-            backgroundImage: "url('https://images.pexels.com/photos/2635038/pexels-photo-2635038.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2')",
+            backgroundImage:
+              "url('https://images.pexels.com/photos/2635038/pexels-photo-2635038.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=2')",
             opacity: 0.6,
           }}
         ></div>
@@ -32,8 +33,12 @@ export default function Home() {
                 Browse Properties
               </Button>
             </Link>
-            <Link href="/auth/register">
-              <Button size="lg" variant="outline" className="bg-white/10 backdrop-blur-sm hover:bg-white/20 border-white">
+            <Link href="/auth/auth/register">
+              <Button
+                size="lg"
+                variant="outline"
+                className="bg-white/10 backdrop-blur-sm hover:bg-white/20 border-white"
+              >
                 Join Now
               </Button>
             </Link>
@@ -66,8 +71,12 @@ export default function Home() {
       {/* Featured Properties */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-2 text-center">Featured Properties</h2>
-          <p className="text-gray-600 mb-8 text-center">Handpicked properties with exceptional value</p>
+          <h2 className="text-3xl font-bold mb-2 text-center">
+            Featured Properties
+          </h2>
+          <p className="text-gray-600 mb-8 text-center">
+            Handpicked properties with exceptional value
+          </p>
           <FeaturedProperties />
         </div>
       </section>
@@ -75,8 +84,12 @@ export default function Home() {
       {/* Property Showcase */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4">
-          <h2 className="text-3xl font-bold mb-2 text-center">Explore by Property Type</h2>
-          <p className="text-gray-600 mb-8 text-center">Find the perfect property that suits your needs</p>
+          <h2 className="text-3xl font-bold mb-2 text-center">
+            Explore by Property Type
+          </h2>
+          <p className="text-gray-600 mb-8 text-center">
+            Find the perfect property that suits your needs
+          </p>
           <PropertyShowcase />
         </div>
       </section>
@@ -85,7 +98,9 @@ export default function Home() {
       <section className="py-16 bg-emerald-50">
         <div className="container mx-auto px-4">
           <h2 className="text-3xl font-bold mb-2 text-center">City Guides</h2>
-          <p className="text-gray-600 mb-8 text-center">Explore real estate opportunities in major Pakistani cities</p>
+          <p className="text-gray-600 mb-8 text-center">
+            Explore real estate opportunities in major Pakistani cities
+          </p>
           <CityGuides />
         </div>
       </section>
@@ -95,28 +110,44 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl font-bold mb-6">AI-Powered Property Insights</h2>
+              <h2 className="text-3xl font-bold mb-6">
+                AI-Powered Property Insights
+              </h2>
               <ul className="space-y-4">
                 <li className="flex items-start">
                   <span className="mr-2 text-2xl">✓</span>
-                  <span>Accurate ROI calculations based on location and market trends</span>
+                  <span>
+                    Accurate ROI calculations based on location and market
+                    trends
+                  </span>
                 </li>
                 <li className="flex items-start">
                   <span className="mr-2 text-2xl">✓</span>
-                  <span>Neighborhood analysis with safety, amenities, and development potential</span>
+                  <span>
+                    Neighborhood analysis with safety, amenities, and
+                    development potential
+                  </span>
                 </li>
                 <li className="flex items-start">
                   <span className="mr-2 text-2xl">✓</span>
-                  <span>Price prediction with 95% accuracy based on historical data</span>
+                  <span>
+                    Price prediction with 95% accuracy based on historical data
+                  </span>
                 </li>
                 <li className="flex items-start">
                   <span className="mr-2 text-2xl">✓</span>
-                  <span>Personalized property recommendations based on your preferences</span>
+                  <span>
+                    Personalized property recommendations based on your
+                    preferences
+                  </span>
                 </li>
               </ul>
               <div className="mt-8">
                 <Link href="/ai-insights">
-                  <Button size="lg" className="bg-white text-emerald-800 hover:bg-gray-100">
+                  <Button
+                    size="lg"
+                    className="bg-white text-emerald-800 hover:bg-gray-100"
+                  >
                     Explore AI Insights
                   </Button>
                 </Link>
@@ -138,12 +169,15 @@ export default function Home() {
       {/* CTA Section */}
       <section className="py-16 bg-white">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-3xl font-bold mb-4">Ready to Find Your Dream Property?</h2>
+          <h2 className="text-3xl font-bold mb-4">
+            Ready to Find Your Dream Property?
+          </h2>
           <p className="text-gray-600 mb-8 max-w-2xl mx-auto">
-            Join thousands of satisfied customers who found their perfect property with Zameen Insight
+            Join thousands of satisfied customers who found their perfect
+            property with Zameen Insight
           </p>
           <div className="flex flex-wrap gap-4 justify-center">
-            <Link href="/auth/register">
+            <Link href="/auth/auth/register">
               <Button size="lg" className="bg-emerald-600 hover:bg-emerald-700">
                 Get Started
               </Button>

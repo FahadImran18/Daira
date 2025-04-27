@@ -1,7 +1,7 @@
 export type PropertyStatus = 'active' | 'pending' | 'rejected';
 export type ChatStatus = 'active' | 'archived';
 export type AdviceStatus = 'pending' | 'accepted' | 'rejected' | 'completed';
-export type UserRole = 'customer' | 'realtor' | 'advisor';
+export type UserRole = "customer" | "realtor";
 
 export interface Property {
   id: string;

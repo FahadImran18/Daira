@@ -152,7 +152,7 @@ export default function Header() {
                 <UserMenu role={userRole} />
               ) : (
                 <div className="flex items-center space-x-2">
-                  <Link href="/auth/login">
+                  <Link href="/login">
                     <Button
                       variant={isTransparent ? "outline" : "ghost"}
                       className={
@@ -253,7 +253,7 @@ export default function Header() {
                     </Button>
                   </Link>
                   <Link
-                    href="/auth/register"
+                    href="/auth/auth/register"
                     onClick={() => setIsMobileMenuOpen(false)}
                   >
                     <Button className="w-full bg-emerald-600 hover:bg-emerald-700 text-white">

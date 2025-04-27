@@ -9,7 +9,13 @@ import { ChatService } from "@/lib/services/chat-service";
 import { Property } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Bed,
@@ -41,6 +47,17 @@ import SphereViewer from "@/components/property/sphere-viewer";
 import { Viewer } from "@photo-sphere-viewer/core";
 import "@photo-sphere-viewer/core/index.css";
 import PanoramaViewer from "@/components/property/panorama-viewer";
+import { AdvisorService } from "@/lib/services/advisor-service";
+import { loadStripe } from "@stripe/stripe-js";
+
+// Define the Advisor type
+interface Advisor {
+  id: string;
+  name: string;
+  expertise: string;
+  city: string;
+  bio: string;
+}
 
 export default function PropertyDetailsPage() {
   const params = useParams();
@@ -55,9 +72,11 @@ export default function PropertyDetailsPage() {
   const [message, setMessage] = useState("");
   const [isScheduling, setIsScheduling] = useState(false);
   const [isMessaging, setIsMessaging] = useState(false);
+  const [advisors, setAdvisors] = useState<any[]>([]);
   const propertyService = new PropertyService();
   const viewingService = new ViewingService();
   const chatService = new ChatService();
+  const advisorService = new AdvisorService();
 
   useEffect(() => {
     const loadProperty = async () => {
@@ -67,6 +86,27 @@ export default function PropertyDetailsPage() {
         );
         if (propertyData) {
           setProperty(propertyData);
+          // Load advisors for this property's area
+          try {
+            const advisorData = await advisorService.getAdvisorsByArea(
+              propertyData.location,
+              propertyData.city
+            );
+            setAdvisors(advisorData);
+          } catch (advisorError) {
+            console.error("Error loading advisors:", advisorError);
+            // If there's an error loading advisors, add a test advisor
+            console.log("Adding test advisor due to error");
+            setAdvisors([
+              {
+                id: "test-advisor-id",
+                name: "Test Advisor",
+                expertise: "Residential",
+                city: propertyData.city,
+                bio: "I'm a test advisor with expertise in residential properties. I can help you evaluate this property and provide valuable insights.",
+              } as any,
+            ]);
+          }
         }
       } catch (error) {
         console.error("Error loading property:", error);
@@ -126,6 +166,46 @@ export default function PropertyDetailsPage() {
       toast.error("Failed to send message");
     } finally {
       setIsMessaging(false);
+    }
+  };
+
+  const handleConsultation = async (advisorId: string) => {
+    if (!user) {
+      toast.error("Please log in to request a consultation");
+      router.push("/login");
+      return;
+    }
+
+    try {
+      console.log("Creating consultation for advisor:", advisorId);
+      const response = await fetch("/api/stripe/create-consultation-session", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          advisorId,
+          propertyId: property!.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to create consultation");
+      }
+
+      const session = await response.json();
+      console.log("Stripe session created:", session);
+
+      if (!session.url) {
+        throw new Error("No checkout URL returned from Stripe");
+      }
+
+      // Redirect directly to the Stripe checkout URL
+      window.location.href = session.url;
+    } catch (error) {
+      console.error("Error creating consultation:", error);
+      toast.error("Failed to create consultation");
     }
   };
 
@@ -458,6 +538,45 @@ export default function PropertyDetailsPage() {
               </Card>
             )}
           </div>
+        </div>
+
+        {/* Add this section after the property information */}
+        <div className="mt-8">
+          <h2 className="text-2xl font-semibold mb-4">Available Advisors</h2>
+          {advisors.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {advisors.map((advisor) => (
+                <Card key={advisor.id}>
+                  <CardHeader>
+                    <CardTitle>{advisor.name}</CardTitle>
+                    <CardDescription>
+                      {advisor.expertise} Expert • {advisor.city}
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {advisor.bio}
+                    </p>
+                    <Button
+                      className="w-full"
+                      onClick={() => handleConsultation(advisor.id)}
+                    >
+                      Get Consultation ($15)
+                    </Button>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          ) : (
+            <Card>
+              <CardContent className="pt-6">
+                <p className="text-muted-foreground text-center">
+                  No advisors available for this area at the moment. Please
+                  check back later.
+                </p>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
