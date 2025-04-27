@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import ImageUpload from "./image-upload";
 import SphereViewer from "./sphere-viewer";
+import PanoramaViewer from "@/components/property/panorama-viewer";
 import { Loader2 } from "lucide-react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -48,6 +49,7 @@ const propertySchema = z.object({
   bathrooms: z.string().min(1, "Number of bathrooms is required"),
   status: z.string().default("active"),
   is_featured: z.boolean().default(false),
+  panorama: z.string().optional(),
 });
 
 type PropertyFormData = z.infer<typeof propertySchema> & {
@@ -129,14 +131,14 @@ export function PropertyForm({ propertyId }: PropertyFormProps) {
       console.log("Submitting property data:", {
         ...data,
         images: uploadedImages,
-        panorama: uploadedPanorama,
+        panorama: uploadedPanorama || data.panorama,
       });
 
       const propertyData = {
         ...data,
         realtor_id: user.id,
         images: uploadedImages,
-        panorama: uploadedPanorama || undefined,
+        panorama: uploadedPanorama || data.panorama || undefined,
         features: [],
         status: "active" as PropertyStatus,
         is_featured: false,
@@ -361,17 +363,30 @@ export function PropertyForm({ propertyId }: PropertyFormProps) {
               ))}
             </div>
           )}
-          {uploadedPanorama && (
-            <div className="mt-4">
-              <p className="text-sm text-muted-foreground mb-2">
-                360° Panorama:
-              </p>
-              <SphereViewer
-                imageUrl={uploadedPanorama}
-                title="Property Panorama"
+          {form.watch("panorama") && (
+            <div className="w-full h-[400px] rounded-lg overflow-hidden border border-gray-300">
+              <PanoramaViewer
+                imageUrl={form.watch("panorama")}
+                height="100%"
+                width="100%"
               />
             </div>
           )}
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="panorama">360° Panorama URL</Label>
+          <Input
+            id="panorama"
+            value={property.panorama || ""}
+            onChange={(e) =>
+              setProperty({ ...property, panorama: e.target.value })
+            }
+            placeholder="https://example.com/panorama.jpg"
+          />
+          <p className="text-sm text-muted-foreground">
+            Enter the URL of a 360° panorama image for virtual tour
+          </p>
         </div>
 
         <Button type="submit" className="w-full" disabled={isSubmitting}>

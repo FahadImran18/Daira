@@ -21,6 +21,7 @@ export interface Property {
   created_at: string;
   updated_at: string;
   is_featured: boolean;
+  panorama?: string;
 }
 
 export interface Chat {

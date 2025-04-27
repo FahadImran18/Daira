@@ -21,6 +21,7 @@ import {
   DollarSign,
   MessageSquare,
   Clock,
+  X,
 } from "lucide-react";
 import { format } from "date-fns";
 import { toast } from "sonner";
@@ -35,6 +36,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import ChatButton from "@/components/property/chat-button";
+import { useSupabase } from "@/lib/supabase/provider";
+import SphereViewer from "@/components/property/sphere-viewer";
+import { Viewer } from "@photo-sphere-viewer/core";
+import "@photo-sphere-viewer/core/index.css";
+import PanoramaViewer from "@/components/property/panorama-viewer";
 
 export default function PropertyDetailsPage() {
   const params = useParams();
@@ -43,6 +49,7 @@ export default function PropertyDetailsPage() {
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const [viewingDate, setViewingDate] = useState("");
   const [viewingTime, setViewingTime] = useState("");
   const [message, setMessage] = useState("");
@@ -153,34 +160,65 @@ export default function PropertyDetailsPage() {
     <div className="container mx-auto px-4 py-8">
       <div className="max-w-7xl mx-auto space-y-8">
         {/* Image Gallery */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="relative aspect-[4/3] rounded-lg overflow-hidden">
-            <img
-              src={
-                property.images?.[activeImageIndex] ||
-                "https://via.placeholder.com/800x600"
-              }
-              alt={property.title}
-              className="object-cover w-full h-full"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-4">
+          <h2 className="text-2xl font-semibold">Property Images</h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {property.images?.map((image, index) => (
-              <button
+              <div
                 key={index}
-                onClick={() => setActiveImageIndex(index)}
-                className={`relative aspect-square rounded-lg overflow-hidden ${
-                  activeImageIndex === index ? "ring-2 ring-primary" : ""
-                }`}
+                className="relative aspect-video cursor-pointer group"
+                onClick={() => setSelectedImage(image)}
               >
                 <img
                   src={image}
                   alt={`${property.title} - Image ${index + 1}`}
-                  className="object-cover w-full h-full"
+                  className="object-cover w-full h-full rounded-lg"
                 />
-              </button>
+                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  <span className="text-white">View in 360°</span>
+                </div>
+              </div>
             ))}
           </div>
+
+          {/* 360° Panorama Modal */}
+          {selectedImage && (
+            <div className="fixed inset-0 bg-black/80 z-50 p-4">
+              <div className="absolute right-4 top-4 z-10">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="bg-white/10 hover:bg-white/20 text-white"
+                  onClick={() => setSelectedImage(null)}
+                >
+                  <X className="h-6 w-6" />
+                </Button>
+              </div>
+              <div className="w-full h-full max-w-7xl mx-auto flex items-center justify-center">
+                <div className="w-full h-[80vh]">
+                  <PanoramaViewer
+                    imageUrl={selectedImage}
+                    height="100%"
+                    width="100%"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Dedicated 360° Panorama Section */}
+          {property.panorama && (
+            <div>
+              <h3 className="text-xl font-semibold mb-4">360° Virtual Tour</h3>
+              <div className="w-full h-[500px] rounded-lg overflow-hidden border border-gray-300">
+                <PanoramaViewer
+                  imageUrl={property.panorama}
+                  height="100%"
+                  width="100%"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Property Information */}

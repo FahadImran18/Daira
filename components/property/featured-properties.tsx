@@ -1,22 +1,35 @@
 "use client";
 
-import Link from 'next/link';
-import { useState } from 'react';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import Link from "next/link";
+import { useState } from "react";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Heart, MapPin, Bed, Bath, Maximize, ArrowRight } from 'lucide-react';
-import { useProperties } from '@/lib/supabase/hooks';
-import { Property } from '@/lib/types';
+import { Heart, MapPin, Bed, Bath, Maximize, ArrowRight } from "lucide-react";
+import { useProperties } from "@/lib/supabase/hooks";
+import { Property } from "@/lib/types";
+import SphereViewer from "./sphere-viewer";
+import PanoramaViewer from "@/components/property/panorama-viewer";
 
 export default function FeaturedProperties() {
   const [favorited, setFavorited] = useState<{ [key: string]: boolean }>({});
-  const { properties, loading, error } = useProperties({ featured: true }) as { properties: Property[], loading: boolean, error: any };
+  const { properties, loading, error } = useProperties({ featured: true }) as {
+    properties: Property[];
+    loading: boolean;
+    error: any;
+  };
 
   const toggleFavorite = (id: string) => {
-    setFavorited(prev => ({
+    setFavorited((prev) => ({
       ...prev,
-      [id]: !prev[id]
+      [id]: !prev[id],
     }));
   };
 
@@ -39,7 +52,9 @@ export default function FeaturedProperties() {
   if (error) {
     return (
       <div className="text-center py-8">
-        <p className="text-red-500">Failed to load properties. Please try again later.</p>
+        <p className="text-red-500">
+          Failed to load properties. Please try again later.
+        </p>
       </div>
     );
   }
@@ -47,7 +62,9 @@ export default function FeaturedProperties() {
   if (!properties || properties.length === 0) {
     return (
       <div className="text-center py-8">
-        <p className="text-gray-500">No featured properties available at the moment.</p>
+        <p className="text-gray-500">
+          No featured properties available at the moment.
+        </p>
       </div>
     );
   }
@@ -56,83 +73,118 @@ export default function FeaturedProperties() {
     <div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {properties.map((property) => (
-          <Card key={property.id} className="overflow-hidden group transition-all duration-300 hover:shadow-lg border-transparent hover:border-emerald-600/20">
+          <Card
+            key={property.id}
+            className="overflow-hidden group transition-all duration-300 hover:shadow-lg border-transparent hover:border-emerald-600/20"
+          >
             <div className="relative">
               <Link href={`/properties/${property.id}`}>
                 <div className="aspect-[4/3] relative overflow-hidden">
-                  <img
-                    src={property.images?.[0]?.url || 'https://via.placeholder.com/400x300'}
-                    alt={property.title}
-                    className="object-cover h-full w-full group-hover:scale-105 transition-transform duration-500"
-                  />
+                  {property.images && property.images.length > 0 ? (
+                    <SphereViewer
+                      imageUrl={
+                        property.images[0] ||
+                        "https://via.placeholder.com/400x300"
+                      }
+                      title={property.title}
+                      className="h-full"
+                    />
+                  ) : (
+                    <img
+                      src="https://via.placeholder.com/400x300"
+                      alt={property.title}
+                      className="object-cover h-full w-full group-hover:scale-105 transition-transform duration-500"
+                    />
+                  )}
                 </div>
               </Link>
-              
-              <div className="absolute top-2 left-2 flex gap-2">
-                {property.status === 'approved' && (
+
+              <div className="absolute top-2 left-2 flex gap-2 z-10">
+                {property.status === "active" && (
                   <Badge className="bg-emerald-600">Verified</Badge>
                 )}
-                {property.is_hot && (
-                  <Badge className="bg-red-500">Hot</Badge>
+                {property.is_featured && (
+                  <Badge className="bg-red-500">Featured</Badge>
                 )}
               </div>
-              
+
               <Button
                 variant="ghost"
                 size="icon"
-                className={`absolute top-2 right-2 rounded-full bg-white/80 hover:bg-white ${
-                  favorited[property.id] ? 'text-red-500' : 'text-gray-500'
+                className={`absolute top-2 right-2 rounded-full bg-white/80 hover:bg-white z-10 ${
+                  favorited[property.id] ? "text-red-500" : "text-gray-500"
                 }`}
                 onClick={() => toggleFavorite(property.id)}
               >
-                <Heart className={`h-5 w-5 ${favorited[property.id] ? 'fill-current' : ''}`} />
+                <Heart
+                  className={`h-5 w-5 ${
+                    favorited[property.id] ? "fill-current" : ""
+                  }`}
+                />
               </Button>
-              
-              <div className="absolute bottom-2 left-2 right-2 flex justify-between">
-                <Badge className="bg-white text-gray-800 font-medium capitalize">{property.property_type}</Badge>
-                <Badge className={property.purpose === 'sale' ? 'bg-blue-500' : 'bg-amber-500'}>
-                  For {property.purpose}
+
+              <div className="absolute bottom-2 left-2 right-2 flex justify-between z-10">
+                <Badge className="bg-white text-gray-800 font-medium capitalize">
+                  {property.property_type}
                 </Badge>
+                <Badge className="bg-blue-500">{property.status}</Badge>
               </div>
             </div>
-            
-            <CardHeader className="p-4 pb-2">
-              <div className="flex items-center text-sm text-muted-foreground mb-1">
-                <MapPin className="h-4 w-4 mr-1" />
-                {property.location}
+
+            {property.panorama && (
+              <div className="w-full h-[200px] rounded-t-lg overflow-hidden">
+                <PanoramaViewer
+                  imageUrl={property.panorama}
+                  height="100%"
+                  width="100%"
+                />
               </div>
-              <CardTitle className="text-lg text-left">{property.title}</CardTitle>
+            )}
+
+            <CardHeader className="p-4 pb-2">
+              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                <div className="flex items-center gap-1">
+                  <MapPin className="h-4 w-4" />
+                  <span>{property.location}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Bed className="h-4 w-4" />
+                  <span>{property.bedrooms}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Bath className="h-4 w-4" />
+                  <span>{property.bathrooms}</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Maximize className="h-4 w-4" />
+                  <span>{property.area}</span>
+                </div>
+              </div>
+              <CardTitle className="text-lg text-left">
+                {property.title}
+              </CardTitle>
               <CardDescription className="text-lg font-bold text-emerald-600 dark:text-emerald-500">
                 PKR {property.price.toLocaleString()}
               </CardDescription>
             </CardHeader>
-            
-            <CardContent className="p-4 pt-2 pb-0">
-              <div className="flex justify-between text-sm">
-                {property.bedrooms && property.bedrooms > 0 && (
-                  <div className="flex items-center">
-                    <Bed className="h-4 w-4 mr-1 text-muted-foreground" />
-                    <span>{property.bedrooms} Beds</span>
-                  </div>
-                )}
-                
-                {property.bathrooms && property.bathrooms > 0 && (
-                  <div className="flex items-center">
-                    <Bath className="h-4 w-4 mr-1 text-muted-foreground" />
-                    <span>{property.bathrooms} Baths</span>
-                  </div>
-                )}
-                
-                <div className="flex items-center">
-                  <Maximize className="h-4 w-4 mr-1 text-muted-foreground" />
-                  <span>{property.area_size} {property.area_unit}</span>
-                </div>
+
+            <CardContent className="p-4 pt-2">
+              <div className="flex items-center justify-between">
+                <div className="text-lg font-bold">${property.price}</div>
+                <Button variant="outline" size="sm" asChild>
+                  <Link href={`/properties/${property.id}`}>
+                    View Details <ArrowRight className="ml-2 h-4 w-4" />
+                  </Link>
+                </Button>
               </div>
             </CardContent>
-            
+
             <CardFooter className="p-4">
               <Link href={`/properties/${property.id}`} className="w-full">
-                <Button variant="ghost" className="w-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 justify-between group">
+                <Button
+                  variant="ghost"
+                  className="w-full text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20 justify-between group"
+                >
                   <span>View Details</span>
                   <ArrowRight className="h-4 w-4 ml-2 transition-transform group-hover:translate-x-1" />
                 </Button>
@@ -141,7 +193,7 @@ export default function FeaturedProperties() {
           </Card>
         ))}
       </div>
-      
+
       <div className="mt-10 text-center">
         <Link href="/properties">
           <Button className="bg-emerald-600 hover:bg-emerald-700">

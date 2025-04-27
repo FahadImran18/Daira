@@ -12,7 +12,7 @@ interface PanoramaViewerProps {
 
 export default function PanoramaViewer({
   imageUrl,
-  height = "400px",
+  height = "500px",
   width = "100%",
 }: PanoramaViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -27,6 +27,7 @@ export default function PanoramaViewer({
 
     // Create a new viewer instance
     if (containerRef.current) {
+      // Use the exact configuration from the documentation
       viewerRef.current = new Viewer({
         container: containerRef.current,
         panorama: imageUrl,
